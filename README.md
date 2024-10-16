@@ -38,17 +38,3 @@ This project implements an event-driven sales data processing pipeline using AWS
 
 The Lambda function checks if the uploaded JSON data includes both `contact-info` and `order-info`. Records missing these fields are treated as invalid and routed to the DLQ.
 
-### Sample JSON Structure of a record
-
-```json
-{
-  "order-info": {
-    "order_id": "1234",
-    "item": "Laptop",
-    "quantity": 1
-  },
-  "contact-info": {
-    "name": "John Doe",
-    "email": "johndoe@example.com"
-  }
-}
