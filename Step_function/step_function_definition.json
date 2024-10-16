@@ -1,0 +1,102 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "GetObject",
+  "States": {
+    "GetObject": {
+      "Type": "Task",
+      "Parameters": {
+        "Bucket.$": "$.detail.bucket.name",
+        "Key.$": "$.detail.object.key"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:s3:getObject",
+      "ResultSelector": {
+        "detail.$": "States.StringToJson($.Body)"
+      },
+      "Next": "Map"
+    },
+    "Map": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "validate-orders-data",
+        "States": {
+          "validate-orders-data": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "Payload.$": "$",
+              "FunctionName": "arn:aws:lambda:us-east-1:905418111531:function:orders-json:$LATEST"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 1,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "ResultSelector": {
+              "contact-info.$": "$.Payload.contact-info",
+              "order-info.$": "$.Payload.order-info"
+            },
+            "Next": "DynamoDB PutItem",
+            "Catch": [
+              {
+                "ErrorEquals": [
+                  "States.TaskFailed"
+                ],
+                "Next": "SQS SendMessage",
+                "ResultPath": null
+              }
+            ]
+          },
+          "DynamoDB PutItem": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:putItem",
+            "Parameters": {
+              "TableName": "orders-processed",
+              "Item": {
+                "OrderId": {
+                  "S.$": "$.order-info.OrderId"
+                },
+                "itemid": {
+                  "S.$": "$.order-info.item-id"
+                },
+                "qty": {
+                  "N.$": "$.order-info.qty"
+                },
+                "contact-name": {
+                  "S.$": "$.contact-info.name"
+                },
+                "contact-email": {
+                  "S.$": "$.contact-info.email"
+                }
+              }
+            },
+            "End": true
+          },
+          "SQS SendMessage": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sqs:sendMessage",
+            "Parameters": {
+              "MessageBody.$": "$",
+              "QueueUrl": "https://sqs.us-east-1.amazonaws.com/905418111531/orders-dlq"
+            },
+            "End": true
+          }
+        }
+      },
+      "End": true,
+      "InputPath": "$.detail",
+      "ItemsPath": "$.orders",
+      "MaxConcurrency": 5
+    }
+  }
+}
