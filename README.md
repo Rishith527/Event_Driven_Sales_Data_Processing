@@ -7,7 +7,7 @@
 This project implements an event-driven sales data processing pipeline using AWS services. When a new sales data JSON file is uploaded to an S3 bucket, an EventBridge rule triggers a Step Function workflow. The Step Function invokes a Lambda function to validate the data. If the sales data contains both `contact-info` and `order-info`, it is sent to a DynamoDB table. If the data is invalid, it is sent to an SQS Dead Letter Queue (DLQ) for further inspection.
 
 ### Architecture
-
+![architecture](https://github.com/user-attachments/assets/9dee2a0c-4526-4013-80d9-14f35ecfd0c3)
 
 
 - **S3**: Stores incoming sales data in JSON format.
